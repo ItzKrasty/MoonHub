@@ -16,7 +16,7 @@ local Window = Library:CreateWindow({
     AutoShow = true,
 })
 local script_version_number = "v1.2"
-Library:SetWatermark("Moon | 60 fps | 60 ms | Trident Survival | " .. script_version_number .. " | Paid")
+Library:SetWatermark("Moon | Trident Survival | " .. script_version_number .. " | Paid")
 
 -- Services
 local Players = game:GetService("Players");
@@ -1634,24 +1634,6 @@ BigHitboxes:AddSlider('BhZ', {
     Compact = false,
 }):OnChanged(function(Slider)
     Config.Hitboxes.ZSize = Slider
-end)
--- Update
-game:GetService("RunService").RenderStepped:Connect(function()
-    local Tick = 0
-    local sec = nil
-    local FPS = {}
-    sec = tick()
-    local fr = tick()
-    for index = #FPS,1,-1 do
-        FPS[index + 1] = (FPS[index] >= fr - 1) and FPS[index] or nil
-    end
-    FPS[1] = fr
-    local fps = (tick() - sec >= 1 and #FPS) or (#FPS / (tick() - sec))
-    fps = math.floor(fps) * 2
-    local ping = tonumber(game:GetService("Stats"):FindFirstChild("PerformanceStats").Ping:GetValue())
-    ping = math.floor(ping)
-
-    Library:SetWatermark("Moon | " .. fps .. " fps | " .. ping .. " ms | Trident Survival | " .. script_version_number .. " | Paid")
 end)
 -- UI
 MenuGroup:AddLabel('Menu bind'):AddKeyPicker('MenuKeybind', { Default = 'RightShift', NoUI = true, Text = 'Menu keybind' }) 
