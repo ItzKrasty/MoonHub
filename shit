@@ -1,0 +1,290 @@
+local loadnewplayer_upvalue = getupvalue(getrenv()._G.Player.LoadNewPlayer, 2);
+local stored_chars = {};
+
+for _, v in pairs(loadnewplayer_upvalue) do
+    if game:GetService("Players"):FindFirstChild(v.name) then
+        stored_chars[game:GetService("Players"):FindFirstChild(v.name)] = v.model
+    end
+end
+setmetatable(loadnewplayer_upvalue, {
+    __newindex = function(Self, Property, Value)
+        if Value.model then
+            if game:GetService("Players"):FindFirstChild(Value.name) then
+                stored_chars[game:GetService("Players"):FindFirstChild(Value.name)] = Value.model
+            end
+        end
+        rawset(Self, Property, Value)
+    end
+})
+
+local hook_mouse = game.Players.LocalPlayer:GetMouse()
+
+local __index; __index = hookmetamethod(game, "__index", function(self, prop)
+    if checkcaller() then 
+        if self:IsA("Player") and prop == "Character" and getcallingscript() == nil then
+            return stored_chars[self];
+        end;
+    end;
+
+    return __index(self, prop)
+end)
+
+--// Macros
+if not LPH_OBFUSCATED then
+    LPH_JIT = function(...) return ... end
+    LPH_JIT_MAX = function(...) return ... end
+    LPH_JIT_ULTRA = function(...) return ... end
+    LPH_NO_VIRTUALIZE = function(...) return ... end
+    LPH_NO_UPVALUES = function(f) return(function(...) return f(...) end) end
+    LPH_ENCSTR = function(...) return ... end
+    LPH_STRENC = function(...) return ... end
+    LPH_HOOK_FIX = function(...) return ... end
+    LPH_CRASH = function() return print(debug.traceback()) end
+end;
+
+-- Library
+local Library = loadstring(game:HttpGet('https://raw.githubusercontent.com/wally-rblx/LinoriaLib/main/Library.lua'))()
+local ThemeManager = loadstring(game:HttpGet('https://raw.githubusercontent.com/wally-rblx/LinoriaLib/main/addons/ThemeManager.lua'))()
+local SaveManager = loadstring(game:HttpGet('https://raw.githubusercontent.com/wally-rblx/LinoriaLib/main/addons/SaveManager.lua'))()
+-- Window, Watermark
+local Window = Library:CreateWindow({
+    Title = '💫 Moon Paid ✨',
+    Center = true, 
+    AutoShow = true,
+})
+
+-- Services
+local Players = game:GetService("Players");
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local SoundService = game:GetService("SoundService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+-- Player Interact
+local LocalPlayer = Players.LocalPlayer;
+local Mouse = LocalPlayer:GetMouse();
+local Camera = workspace.CurrentCamera
+local _Character = getrenv()._G.Character;
+local Cameras = game:GetService("Workspace").Camera;
+local CurrentCamera = game:GetService("Workspace").CurrentCamera
+local worldToViewportPoint = CurrentCamera.worldToViewportPoint
+-- MetaTables
+local gmt = getrawmetatable(game)
+setreadonly(gmt, false)
+local oldindex = gmt.__index
+-- Utility
+local utility = {
+    services = {
+        players = game:GetService("Players"),
+        workspace = game:GetService("Workspace"),
+        userinputservice = game:GetService("UserInputService"),
+        runservice = game:GetService("RunService"),
+        httpservice = game:GetService("HttpService"),
+        coregui = game:GetService("CoreGui"),
+        lighting = game:GetService("Lighting"),
+        guiservice = game:GetService("GuiService"),
+        replicatedstorage = game:GetService("ReplicatedStorage")
+    },
+    functions = {},
+}
+--// Variables
+local localplayer = utility.services.players.LocalPlayer
+local camera = utility.services.workspace.CurrentCamera
+local mouse = localplayer:GetMouse()
+
+--// Localisation
+local drawing_new = Drawing.new
+local color3_new, color3_fromrgb = Color3.new, Color3.fromRGB
+local vector3_new, vector2_new = Vector3.new, Vector2.new
+local math_huge, math_floor, math_ceil = math.huge, math.floor, math.ceil
+local getguiinset = utility.services.guiservice.GetGuiInset
+local ray_new = Ray.new
+-- Updaters
+local HomeRayOn = false
+local ZoomOn = false
+local AimbotOn = false
+local HRTransp = 0.6
+-- Cfg
+local fovcircle = Drawing.new("Circle")
+local Config = {
+    Esp = {
+        EspDistance       = 900,
+        Box               = false,
+        BoxOutline        = false,
+        BoxColor          = Color3.fromRGB(255,255,255),
+        BoxOutlineColor   = Color3.fromRGB(0,0,0),
+        HealthBar         = false,
+        HealthBarSide     = "Left",
+        Names             = false,
+        NamesColor        = Color3.fromRGB(255,255,255),
+        NamesOutline      = false,
+        NamesOutlineColor = Color3.fromRGB(0,0,0),
+        Weapon            = false,
+        WeaponColor       = false,
+        Skeletons         = false,
+        SkeletonsColor    = Color3.fromRGB(255,255,255),
+        Tracers           = false,
+        TracersColor      = Color3.fromRGB(255,255,255),
+        Font         = 2,
+        Size         = 13,
+
+        SnaplineSettings = {
+            Snapline = false,
+            Thickness = 1,
+            Transparency = 1,
+            From = Vector2.new(CurrentCamera.ViewportSize.X / 2, CurrentCamera.ViewportSize.Y / 2),
+            To = Vector2.new(CurrentCamera.ViewportSize.X /  2, CurrentCamera.ViewportSize.Y / 2),
+            Color = Color3.fromRGB(255, 255, 255),
+        },
+    },
+
+	ObjectEsp = {
+		Stone          = false,
+		Iron           = false,
+		Nitrate        = false,
+		Loot           = false,
+		Lootbags       = false,
+	},
+
+    Hitboxes = {
+        Transparency     = 0.8,
+        XSize            = 3,
+        YSize            = 6,
+        ZSize            = 2,
+    },
+}
+
+fovcircle.Visible      = false
+fovcircle.Radius       = 120
+fovcircle.Color        = Color3.fromRGB(255,255,255)
+fovcircle.Thickness    = 1
+fovcircle.Filled       = false
+fovcircle.Transparency = 1
+fovcircle.Position     = Vector2.new(CurrentCamera.ViewportSize.X / 2, CurrentCamera.ViewportSize.Y / 2)
+-- Tabs
+local VisualsTab = Window:AddTab('Visuals')
+local CombatTab = Window:AddTab('Combat')
+local UITab = Window:AddTab('UI')
+local MenuGroup = UITab:AddRightGroupbox('Menu')
+MenuGroup:AddButton('Unload', function() Library:Unload() end)
+Library:OnUnload(function()
+    Library.Unloaded = true
+end)
+--
+local Snapline_Object = drawing_new("Line")
+Snapline_Object.Visible = false
+Snapline_Object.Thickness = 1
+Snapline_Object.Transparency = 1
+Snapline_Object.From = vector2_new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+Snapline_Object.To = vector2_new(camera.ViewportSize.X /  2, camera.ViewportSize.Y / 2)
+Snapline_Object.Color = color3_fromrgb(255, 255, 255)
+
+local AimlockTab = CombatTab:AddRightGroupbox('Aimlock')
+local SnaplineTab = VisualsTab:AddRightGroupbox('Snaplines')
+AimlockTab:AddToggle('Aimlock_Toggle', {Text = 'Toggle', Default = false}):AddKeyPicker('Aimlock_Holding', {Default = 'E', SyncToggleState = false, Mode = 'Hold', Text = 'Aimlock', NoUI = false,})
+AimlockTab:AddDivider()
+AimlockTab:AddToggle('Aimlock_IgnoreTeammates', {Text = 'Team Check <not work>', Default = false})
+AimlockTab:AddDropdown('Aimlock_TargetPart', {Values = { 'Head', 'HumanoidRootPart' }, Default = 1, Multi = false, Text = 'Target Part'})
+
+SnaplineTab:AddToggle('Snapline_Toggle', {Text = 'Toggle', Default = false}):AddColorPicker("Snapline_Color", {Default = Color3.fromRGB(255, 255, 255)}):OnChanged(function()
+    Snapline_Object.Visible = Toggles.Snapline_Toggle.Value
+end)
+
+Options.Snapline_Color:OnChanged(function()
+    Snapline_Object.Color = Options.Snapline_Color.Value
+end)
+
+SnaplineTab:AddSlider('Snapline_Thickness', {Text = 'Thickness', Default = 1, Min = 0.5, Max = 5, Rounding = 1, Compact = false}):OnChanged(function()
+    Snapline_Object.Thickness = Options.Snapline_Thickness.Value
+end)
+
+SnaplineTab:AddSlider('Snapline_Transparency', {Text = 'Transparency', Default = 1, Min = 0, Max = 1, Rounding = 2, Compact = false}):OnChanged(function()
+    Snapline_Object.Transparency = Options.Snapline_Transparency.Value
+end)
+
+SnaplineTab:AddDropdown('Snapline_TargetPart', {Values = { 'Head', 'HumanoidRootPart' }, Default = 1, Multi = false, Text = 'Snap To'})
+
+LPH_JIT_ULTRA(function()
+    utility.functions.closest_to_mouse = function(type)
+        local target = nil
+        local maxDist = math_huge
+
+        for _,v in ipairs(utility.services.players:GetPlayers()) do
+            if v ~= localplayer and v.Character and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health ~= 0 and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Head") then
+                local pos, onScreen
+                if type == "aimbot" then
+                    pos, onScreen = camera:WorldToViewportPoint(v.Character[Options.Aimlock_TargetPart.Value].Position)
+
+                    if onScreen then
+                        local dist = (vector2_new(pos.X, pos.Y - getguiinset(utility.services.guiservice).Y) - vector2_new(mouse.X, mouse.Y)).Magnitude
+                        if dist <= maxDist then
+                            if Toggles.FOVCircle_Toggle.Value then
+                                if Toggles.Aimlock_IgnoreTeammates.Value then
+                                    if dist < Options.FOVCircle_Radius.Value and localplayer.TeamColor ~= v.TeamColor then
+                                        maxDist = dist
+                                        target = v
+                                    end
+                                else
+                                    if dist < Options.FOVCircle_Radius.Value then
+                                        maxDist = dist
+                                        target = v
+                                    end
+                                end
+                            else
+                                if Toggles.Aimlock_IgnoreTeammates.Value then
+                                    if dist <= maxDist and localplayer.TeamColor ~= v.TeamColor then
+                                        maxDist = dist
+                                        target = v
+                                    end
+                                else
+                                    if dist <= maxDist then
+                                        maxDist = dist 
+                                        target = v 
+                                    end
+                                end
+                            end
+                        end
+                    end     
+                elseif type == "snapline" then
+                    pos, onScreen = camera:WorldToViewportPoint(v.Character[Options.Snapline_TargetPart.Value].Position)
+
+                    if onScreen then
+                        local dist = (vector2_new(pos.X, pos.Y - getguiinset(utility.services.guiservice).Y) - vector2_new(mouse.X, mouse.Y)).Magnitude
+                        if dist <= maxDist then
+                            maxDist = dist 
+                            target = v 
+                        end
+                    end
+                end
+            end
+        end
+        return target
+    end
+
+    do
+        utility.services.runservice.RenderStepped:Connect(function()
+            if utility.functions.closest_to_mouse("aimbot") ~= nil and Toggles.Aimlock_Toggle.Value and Options.Aimlock_Holding:GetState() then 
+                local Vector, onScreen = camera:WorldToViewportPoint(utility.functions.closest_to_mouse("aimbot").Character[Options.Aimlock_TargetPart.Value].Position)
+                mousemoverel((Vector.X - utility.services.userinputservice:GetMouseLocation().X), (Vector.Y - utility.services.userinputservice:GetMouseLocation().Y))
+            end
+
+            if Toggles.Snapline_Toggle.Value then
+                local ClosestPlayer = utility.functions.closest_to_mouse("snapline")
+
+                if ClosestPlayer ~= nil and ClosestPlayer.Character and ClosestPlayer.Character:FindFirstChild("HumanoidRootPart") and ClosestPlayer.Character:FindFirstChild("Head") then
+                    local snapVector, snapOnScreen = camera:WorldToViewportPoint(ClosestPlayer.Character[Options.Snapline_TargetPart.Value].Position)
+                    if snapOnScreen then
+                        Snapline_Object.From = vector2_new(utility.services.userinputservice:GetMouseLocation().X, utility.services.userinputservice:GetMouseLocation().Y)
+                        Snapline_Object.To = vector2_new(snapVector.X, snapVector.Y)
+                        Snapline_Object.Visible = true
+                    else
+                        Snapline_Object.Visible = false
+                    end
+                else
+                    Snapline_Object.Visible = false
+                end
+            else
+                Snapline_Object.Visible = false
+            end
+        end)
+    end
+end)()
